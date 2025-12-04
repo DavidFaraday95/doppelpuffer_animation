@@ -411,8 +411,13 @@
                 .toString(16).slice(1);
         }
         
-        function drawComponent(x, y, width, height, label, active) {
-            ctx.fillStyle = active ? '#4CAF50' : '#9E9E9E';
+        function drawComponent(x, y, width, height, label, active, waiting) {
+            // Base color - gray if waiting, green if active, gray if inactive
+            if (waiting) {
+                ctx.fillStyle = '#FFB74D'; // Orange for waiting
+            } else {
+                ctx.fillStyle = active ? '#4CAF50' : '#9E9E9E';
+            }
             ctx.fillRect(x, y, width, height);
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 2;
@@ -422,6 +427,30 @@
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(label, x + width/2, y + height/2 + 5);
+            
+            // Add waiting indicator
+            if (waiting) {
+                // Draw pulsing dots animation
+                const dotY = y + height/2 + 25;
+                const dotSize = 4;
+                const spacing = 12;
+                const baseX = x + width/2 - spacing;
+                
+                // Animate dots with time
+                const phase = (time * 0.1) % 3;
+                for (let i = 0; i < 3; i++) {
+                    const opacity = Math.abs(Math.sin((phase + i) * Math.PI / 1.5));
+                    ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(baseX + i * spacing, dotY, dotSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // "Wartet..." text
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText('Wartet...', x + width/2, y + height - 10);
+            }
         }
         
         function drawArrow(fromX, fromY, toX, toY, label, active) {
@@ -466,8 +495,10 @@
             ctx.textAlign = 'center';
             ctx.fillText('Doppelpuffer DMA ↔ Ethernet System', canvas.width/2, 30);
             
-            // DMA Controller
-            drawComponent(50, 200, 120, 80, 'DMA', state !== 4);
+            // DMA Controller - waiting in state 4, active otherwise
+            const dmaWaiting = state === 4;
+            const dmaActive = state !== 4;
+            drawComponent(50, 200, 120, 80, 'DMA', dmaActive, dmaWaiting);
             
             // Puffer A
             let bufferAStatus = 'Leer';
@@ -483,9 +514,10 @@
             else if (bufferB >= 100) bufferBStatus = state === 4 ? 'Voll/Blockiert' : 'Voll';
             drawBuffer(250, 280, 150, 120, bufferB, 'Puffer B', bufferBStatus);
             
-            // Ethernet Interface
+            // Ethernet Interface - waiting in states 1, 5, 6, active in 2, 3, 4
+            const ethWaiting = state === 1 || state === 5 || state === 6;
             const ethActive = state === 2 || state === 3 || state === 4;
-            drawComponent(500, 200, 120, 80, 'Ethernet', ethActive);
+            drawComponent(500, 200, 120, 80, 'Ethernet', ethActive, ethWaiting);
             
             // Pfeile
             // DMA -> Puffer A
